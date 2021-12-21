@@ -83,7 +83,7 @@ use {
             BuiltinProgram, Executor, Executors, ProcessInstructionWithContext, TransactionExecutor,
         },
         log_collector::LogCollector,
-        timings::{ExecuteDetailsTimings, ExecuteTimings},
+        timings::ExecuteTimings,
     },
 >>>>>>> 7d32909e1 (move `ExecuteTimings` from `runtime::bank` to `program_runtime::timings`)
     solana_sdk::{
@@ -3388,6 +3388,120 @@ impl Bank {
         cache.remove(pubkey);
     }
 
+<<<<<<< HEAD
+=======
+    /// Execute a transaction using the provided loaded accounts and update
+    /// the executors cache if the transaction was successful.
+    fn execute_loaded_transaction(
+        &self,
+        tx: &SanitizedTransaction,
+        loaded_transaction: &mut LoadedTransaction,
+        compute_budget: ComputeBudget,
+        durable_nonce_fee: Option<DurableNonceFee>,
+        enable_cpi_recording: bool,
+        enable_log_recording: bool,
+        timings: &mut ExecuteTimings,
+        error_counters: &mut ErrorCounters,
+    ) -> TransactionExecutionResult {
+        let legacy_message = match tx.message().legacy_message() {
+            Some(message) => message,
+            None => {
+                // TODO: support versioned messages
+                return TransactionExecutionResult::NotExecuted(
+                    TransactionError::UnsupportedVersion,
+                );
+            }
+        };
+
+        let mut get_executors_time = Measure::start("get_executors_time");
+        let executors = self.get_executors(
+            tx.message(),
+            &loaded_transaction.accounts,
+            &loaded_transaction.program_indices,
+        );
+        get_executors_time.stop();
+        timings.execute_accessories.get_executors_us += get_executors_time.as_us();
+
+        let mut transaction_accounts = Vec::new();
+        std::mem::swap(&mut loaded_transaction.accounts, &mut transaction_accounts);
+        let mut transaction_context = TransactionContext::new(
+            transaction_accounts,
+            compute_budget.max_invoke_depth.saturating_add(1),
+        );
+
+        let instruction_recorder = if enable_cpi_recording {
+            Some(InstructionRecorder::new_ref(
+                tx.message().instructions().len(),
+            ))
+        } else {
+            None
+        };
+
+        let log_collector = if enable_log_recording {
+            Some(LogCollector::new_ref())
+        } else {
+            None
+        };
+
+        let (blockhash, lamports_per_signature) = self.last_blockhash_and_lamports_per_signature();
+
+        let mut process_message_time = Measure::start("process_message_time");
+        let process_result = MessageProcessor::process_message(
+            &self.builtin_programs.vec,
+            legacy_message,
+            &loaded_transaction.program_indices,
+            &mut transaction_context,
+            self.rent_collector.rent,
+            log_collector.clone(),
+            executors.clone(),
+            instruction_recorder.clone(),
+            self.feature_set.clone(),
+            compute_budget,
+            timings,
+            &*self.sysvar_cache.read().unwrap(),
+            blockhash,
+            lamports_per_signature,
+            self.load_accounts_data_len(),
+        );
+        process_message_time.stop();
+        timings.execute_accessories.process_message_us += process_message_time.as_us();
+
+        let mut update_executors_time = Measure::start("update_executors_time");
+        self.update_executors(process_result.is_ok(), executors);
+        update_executors_time.stop();
+        timings.execute_accessories.update_executors_us += update_executors_time.as_us();
+
+        let status = process_result
+            .map(|info| {
+                self.store_accounts_data_len(info.accounts_data_len);
+            })
+            .map_err(|err| {
+                error_counters.instruction_error += 1;
+                err
+            });
+
+        let log_messages: Option<TransactionLogMessages> =
+            log_collector.and_then(|log_collector| {
+                Rc::try_unwrap(log_collector)
+                    .map(|log_collector| log_collector.into_inner().into())
+                    .ok()
+            });
+
+        let inner_instructions = instruction_recorder
+            .and_then(|instruction_recorder| Rc::try_unwrap(instruction_recorder).ok())
+            .map(|instruction_recorder| instruction_recorder.into_inner().deconstruct());
+
+        loaded_transaction.accounts = transaction_context.deconstruct();
+
+        TransactionExecutionResult::Executed(TransactionExecutionDetails {
+            status,
+            log_messages,
+            inner_instructions,
+            durable_nonce_fee,
+        })
+    }
+
+>>>>>>> b25e4a200 (Add execute metrics)
     #[allow(clippy::type_complexity)]
     pub fn load_and_execute_transactions(
         &self,
@@ -3452,10 +3566,15 @@ impl Bank {
         let mut transaction_log_messages: Vec<Option<Vec<String>>> =
             Vec::with_capacity(hashed_txs.len());
 
+<<<<<<< HEAD
         let executed: Vec<TransactionExecutionResult> = loaded_txs
+=======
+        let execution_results: Vec<TransactionExecutionResult> = loaded_txs
+>>>>>>> b25e4a200 (Add execute metrics)
             .iter_mut()
             .zip(hashed_txs.as_transactions_iter())
             .map(|(accs, tx)| match accs {
+<<<<<<< HEAD
                 (Err(e), _nonce_rollback) => {
                     transaction_log_messages.push(None);
                     inner_instructions.push(None);
@@ -3537,6 +3656,31 @@ impl Bank {
                         ) {
                             warn!("Account lifetime mismanagement");
                             process_result = Err(e);
+=======
+                (Err(e), _nonce) => TransactionExecutionResult::NotExecuted(e.clone()),
+                (Ok(loaded_transaction), nonce) => {
+                    let mut feature_set_clone_time = Measure::start("feature_set_clone");
+                    let feature_set = self.feature_set.clone();
+                    feature_set_clone_time.stop();
+                    timings.execute_accessories.feature_set_clone_us +=
+                        feature_set_clone_time.as_us();
+
+                    signature_count += u64::from(tx.message().header().num_required_signatures);
+
+                    let mut compute_budget = self.compute_budget.unwrap_or_else(ComputeBudget::new);
+                    if feature_set.is_active(&tx_wide_compute_cap::id()) {
+                        let mut compute_budget_process_transaction_time =
+                            Measure::start("compute_budget_process_transaction_time");
+                        let process_transaction_result =
+                            compute_budget.process_transaction(tx, feature_set);
+                        compute_budget_process_transaction_time.stop();
+                        timings
+                            .execute_accessories
+                            .compute_budget_process_transaction_us +=
+                            compute_budget_process_transaction_time.as_us();
+                        if let Err(err) = process_transaction_result {
+                            return TransactionExecutionResult::NotExecuted(err);
+>>>>>>> b25e4a200 (Add execute metrics)
                         }
 
                         if process_result.is_ok() {
@@ -3547,6 +3691,7 @@ impl Bank {
                         inner_instructions.push(None);
                     }
 
+<<<<<<< HEAD
                     let nonce_rollback =
                         if let Err(TransactionError::InstructionError(_, _)) = &process_result {
                             error_counters.instruction_error += 1;
@@ -3557,6 +3702,20 @@ impl Bank {
                             nonce_rollback.clone()
                         };
                     (process_result, nonce_rollback)
+=======
+                    let durable_nonce_fee = nonce.as_ref().map(DurableNonceFee::from);
+
+                    self.execute_loaded_transaction(
+                        tx,
+                        loaded_transaction,
+                        compute_budget,
+                        durable_nonce_fee,
+                        enable_cpi_recording,
+                        enable_log_recording,
+                        timings,
+                        &mut error_counters,
+                    )
+>>>>>>> b25e4a200 (Add execute metrics)
                 }
             })
             .collect();

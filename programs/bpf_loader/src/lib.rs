@@ -233,6 +233,7 @@ fn process_instruction_common(
             0
         };
 
+<<<<<<< HEAD
         let keyed_accounts = invoke_context.get_keyed_accounts()?;
         let program = keyed_account_at_index(keyed_accounts, 0)?;
         let loader_id = &program.owner()?;
@@ -242,6 +243,9 @@ fn process_instruction_common(
             return Err(InstructionError::IncorrectProgramId);
         }
 
+=======
+        let mut get_or_create_executor_time = Measure::start("get_or_create_executor_time");
+>>>>>>> b25e4a200 (Add execute metrics)
         let executor = match invoke_context.get_executor(program_id) {
             Some(executor) => executor,
             None => {
@@ -251,6 +255,9 @@ fn process_instruction_common(
                 executor
             }
         };
+        get_or_create_executor_time.stop();
+        invoke_context.timings.get_or_create_executor_us += get_or_create_executor_time.as_us();
+
         executor.execute(
             loader_id,
             program_id,

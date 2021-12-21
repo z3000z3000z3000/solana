@@ -5355,6 +5355,30 @@ dependencies = [
  "solana-sdk-macro 1.8.12",
  "static_assertions",
  "thiserror",
+<<<<<<< HEAD
+=======
+ "wasm-bindgen",
+]
+
+[[package]]
+name = "solana-program-runtime"
+version = "1.10.0"
+dependencies = [
+ "base64 0.13.0",
+ "bincode",
+ "itertools 0.10.3",
+ "libc",
+ "libloading",
+ "log 0.4.14",
+ "num-derive",
+ "num-traits",
+ "rustc_version 0.4.0",
+ "serde",
+ "solana-logger 1.10.0",
+ "solana-measure",
+ "solana-sdk",
+ "thiserror",
+>>>>>>> b25e4a200 (Add execute metrics)
 ]
 
 [[package]]

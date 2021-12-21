@@ -7,6 +7,15 @@ use {
     log::*,
     serde::{Deserialize, Serialize},
     solana_measure::measure::Measure,
+<<<<<<< HEAD
+=======
+    solana_program_runtime::{
+        instruction_recorder::InstructionRecorder,
+        invoke_context::{BuiltinProgram, Executors, InvokeContext},
+        log_collector::LogCollector,
+        timings::ExecuteTimings,
+    },
+>>>>>>> b25e4a200 (Add execute metrics)
     solana_sdk::{
         account::{AccountSharedData, ReadableAccount, WritableAccount},
         account_utils::StateMut,
@@ -1040,6 +1049,7 @@ impl MessageProcessor {
     /// This method calls the instruction's program entrypoint function
     pub fn process_cross_program_instruction(
         message: &Message,
+<<<<<<< HEAD
         executable_accounts: &[TransactionAccountRefCell],
         accounts: &[TransactionAccountRefCell],
         caller_write_privileges: &[bool],
@@ -1319,6 +1329,27 @@ impl MessageProcessor {
             executable_accounts,
             accounts,
             &self.programs,
+=======
+        program_indices: &[Vec<usize>],
+        transaction_context: &mut TransactionContext,
+        rent: Rent,
+        log_collector: Option<Rc<RefCell<LogCollector>>>,
+        executors: Rc<RefCell<Executors>>,
+        instruction_recorder: Option<Rc<RefCell<InstructionRecorder>>>,
+        feature_set: Arc<FeatureSet>,
+        compute_budget: ComputeBudget,
+        timings: &mut ExecuteTimings,
+        sysvars: &[(Pubkey, Vec<u8>)],
+        blockhash: Hash,
+        lamports_per_signature: u64,
+        current_accounts_data_len: u64,
+    ) -> Result<ProcessedMessageInfo, TransactionError> {
+        let mut invoke_context = InvokeContext::new(
+            transaction_context,
+            rent,
+            builtin_programs,
+            sysvars,
+>>>>>>> b25e4a200 (Add execute metrics)
             log_collector,
             bpf_compute_budget,
             compute_meter,
@@ -1363,6 +1394,7 @@ impl MessageProcessor {
         execute_or_verify_result
     }
 
+<<<<<<< HEAD
     /// Process a message.
     /// This method calls each instruction in the message over the set of loaded Accounts
     /// The accounts are committed back to the bank only if every instruction succeeds
@@ -1409,6 +1441,41 @@ impl MessageProcessor {
                 .map_err(|err| TransactionError::InstructionError(instruction_index as u8, err));
 
             err?;
+=======
+            let instruction_accounts = instruction
+                .accounts
+                .iter()
+                .map(|index_in_transaction| {
+                    let index_in_transaction = *index_in_transaction as usize;
+                    InstructionAccount {
+                        index_in_transaction,
+                        index_in_caller: program_indices.len().saturating_add(index_in_transaction),
+                        is_signer: message.is_signer(index_in_transaction),
+                        is_writable: message.is_writable(index_in_transaction),
+                    }
+                })
+                .collect::<Vec<_>>();
+            let mut time = Measure::start("execute_instruction");
+            let mut compute_units_consumed = 0;
+            let result = invoke_context.process_instruction(
+                &instruction.data,
+                &instruction_accounts,
+                program_indices,
+                &mut compute_units_consumed,
+                timings,
+            );
+            time.stop();
+            timings.details.accumulate_program(
+                instruction.program_id(&message.account_keys),
+                time.as_us(),
+                compute_units_consumed,
+                result.is_err(),
+            );
+            timings.details.accumulate(&invoke_context.timings);
+            timings.execute_accessories.process_instructions_us += time.as_us();
+            result
+                .map_err(|err| TransactionError::InstructionError(instruction_index as u8, err))?;
+>>>>>>> b25e4a200 (Add execute metrics)
         }
         Ok(())
     }
@@ -2086,11 +2153,35 @@ mod tests {
             executors.clone(),
             None,
             Arc::new(FeatureSet::all_enabled()),
+<<<<<<< HEAD
             BpfComputeBudget::new(),
             Rc::new(RefCell::new(MockComputeMeter::default())),
             &mut ExecuteDetailsTimings::default(),
             Arc::new(Accounts::default()),
             &ancestors,
+=======
+            ComputeBudget::new(),
+            &mut ExecuteTimings::default(),
+            &[],
+            Hash::default(),
+            0,
+            0,
+        );
+        assert!(result.is_ok());
+        assert_eq!(
+            transaction_context
+                .get_account_at_index(0)
+                .borrow()
+                .lamports(),
+            100
+        );
+        assert_eq!(
+            transaction_context
+                .get_account_at_index(1)
+                .borrow()
+                .lamports(),
+            0
+>>>>>>> b25e4a200 (Add execute metrics)
         );
         assert_eq!(result, Ok(()));
         assert_eq!(accounts[0].1.borrow().lamports(), 100);
@@ -2114,11 +2205,20 @@ mod tests {
             executors.clone(),
             None,
             Arc::new(FeatureSet::all_enabled()),
+<<<<<<< HEAD
             BpfComputeBudget::new(),
             Rc::new(RefCell::new(MockComputeMeter::default())),
             &mut ExecuteDetailsTimings::default(),
             Arc::new(Accounts::default()),
             &ancestors,
+=======
+            ComputeBudget::new(),
+            &mut ExecuteTimings::default(),
+            &[],
+            Hash::default(),
+            0,
+            0,
+>>>>>>> b25e4a200 (Add execute metrics)
         );
         assert_eq!(
             result,
@@ -2146,11 +2246,20 @@ mod tests {
             executors,
             None,
             Arc::new(FeatureSet::all_enabled()),
+<<<<<<< HEAD
             BpfComputeBudget::new(),
             Rc::new(RefCell::new(MockComputeMeter::default())),
             &mut ExecuteDetailsTimings::default(),
             Arc::new(Accounts::default()),
             &ancestors,
+=======
+            ComputeBudget::new(),
+            &mut ExecuteTimings::default(),
+            &[],
+            Hash::default(),
+            0,
+            0,
+>>>>>>> b25e4a200 (Add execute metrics)
         );
         assert_eq!(
             result,
@@ -2270,11 +2379,20 @@ mod tests {
             executors.clone(),
             None,
             Arc::new(FeatureSet::all_enabled()),
+<<<<<<< HEAD
             BpfComputeBudget::new(),
             Rc::new(RefCell::new(MockComputeMeter::default())),
             &mut ExecuteDetailsTimings::default(),
             Arc::new(Accounts::default()),
             &ancestors,
+=======
+            ComputeBudget::new(),
+            &mut ExecuteTimings::default(),
+            &[],
+            Hash::default(),
+            0,
+            0,
+>>>>>>> b25e4a200 (Add execute metrics)
         );
         assert_eq!(
             result,
@@ -2302,11 +2420,20 @@ mod tests {
             executors.clone(),
             None,
             Arc::new(FeatureSet::all_enabled()),
+<<<<<<< HEAD
             BpfComputeBudget::new(),
             Rc::new(RefCell::new(MockComputeMeter::default())),
             &mut ExecuteDetailsTimings::default(),
             Arc::new(Accounts::default()),
             &ancestors,
+=======
+            ComputeBudget::new(),
+            &mut ExecuteTimings::default(),
+            &[],
+            Hash::default(),
+            0,
+            0,
+>>>>>>> b25e4a200 (Add execute metrics)
         );
         assert_eq!(result, Ok(()));
 
@@ -2332,11 +2459,39 @@ mod tests {
             executors,
             None,
             Arc::new(FeatureSet::all_enabled()),
+<<<<<<< HEAD
             BpfComputeBudget::new(),
             Rc::new(RefCell::new(MockComputeMeter::default())),
             &mut ExecuteDetailsTimings::default(),
             Arc::new(Accounts::default()),
             &ancestors,
+=======
+            ComputeBudget::new(),
+            &mut ExecuteTimings::default(),
+            &[],
+            Hash::default(),
+            0,
+            0,
+        );
+        assert!(result.is_ok());
+        assert_eq!(
+            transaction_context
+                .get_account_at_index(0)
+                .borrow()
+                .lamports(),
+            80
+        );
+        assert_eq!(
+            transaction_context
+                .get_account_at_index(1)
+                .borrow()
+                .lamports(),
+            20
+        );
+        assert_eq!(
+            transaction_context.get_account_at_index(0).borrow().data(),
+            &vec![42]
+>>>>>>> b25e4a200 (Add execute metrics)
         );
         assert_eq!(result, Ok(()));
         assert_eq!(accounts[0].1.borrow().lamports(), 80);
@@ -2676,8 +2831,17 @@ mod tests {
             Rc::new(RefCell::new(Executors::default())),
             None,
             Arc::new(FeatureSet::all_enabled()),
+<<<<<<< HEAD
             Arc::new(Accounts::default()),
             &ancestors,
+=======
+            ComputeBudget::new(),
+            &mut ExecuteTimings::default(),
+            &[],
+            Hash::default(),
+            0,
+            0,
+>>>>>>> b25e4a200 (Add execute metrics)
         );
 
         // not owned account modified by the invoker

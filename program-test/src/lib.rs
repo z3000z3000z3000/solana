@@ -338,7 +338,20 @@ impl solana_sdk::program_stubs::SyscallStubs for SyscallStubs {
             }
         }
 
+<<<<<<< HEAD
         invoke_context.record_instruction(instruction);
+=======
+        let mut compute_units_consumed = 0;
+        invoke_context
+            .process_instruction(
+                &instruction.data,
+                &instruction_accounts,
+                &program_indices,
+                &mut compute_units_consumed,
+                &mut ExecuteTimings::default(),
+            )
+            .map_err(|err| ProgramError::try_from(err).unwrap_or_else(|err| panic!("{}", err)))?;
+>>>>>>> b25e4a200 (Add execute metrics)
 
         solana_runtime::message_processor::MessageProcessor::process_cross_program_instruction(
             &message,

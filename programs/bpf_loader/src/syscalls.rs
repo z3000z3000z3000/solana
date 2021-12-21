@@ -1,6 +1,15 @@
 use {
     crate::{alloc, BpfError},
     alloc::Alloc,
+<<<<<<< HEAD
+=======
+    solana_program_runtime::{
+        ic_logger_msg, ic_msg,
+        invoke_context::{ComputeMeter, InvokeContext},
+        stable_log,
+        timings::ExecuteTimings,
+    },
+>>>>>>> b25e4a200 (Add execute metrics)
     solana_rbpf::{
         aligned_memory::AlignedMemory,
         ebpf,
@@ -2469,6 +2478,7 @@ fn call<'a>(
     };
 
     // Process instruction
+<<<<<<< HEAD
 
     #[allow(clippy::deref_addrof)]
     match MessageProcessor::process_cross_program_instruction(
@@ -2483,6 +2493,18 @@ fn call<'a>(
             return Err(SyscallError::InstructionError(err).into());
         }
     }
+=======
+    let mut compute_units_consumed = 0;
+    invoke_context
+        .process_instruction(
+            &instruction.data,
+            &instruction_accounts,
+            &program_indices,
+            &mut compute_units_consumed,
+            &mut ExecuteTimings::default(),
+        )
+        .map_err(SyscallError::InstructionError)?;
+>>>>>>> b25e4a200 (Add execute metrics)
 
     // Copy results back to caller
     {
