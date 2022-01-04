@@ -75,6 +75,17 @@ use {
     },
     solana_measure::measure::Measure,
     solana_metrics::{inc_new_counter_debug, inc_new_counter_info},
+<<<<<<< HEAD
+=======
+    solana_program_runtime::{
+        instruction_recorder::InstructionRecorder,
+        invoke_context::{
+            BuiltinProgram, Executor, Executors, ProcessInstructionWithContext, TransactionExecutor,
+        },
+        log_collector::LogCollector,
+        timings::{ExecuteDetailsTimings, ExecuteTimings},
+    },
+>>>>>>> 7d32909e1 (move `ExecuteTimings` from `runtime::bank` to `program_runtime::timings`)
     solana_sdk::{
         account::{
             create_account_shared_data_with_fields as create_account, from_account, Account,
@@ -196,6 +207,7 @@ impl RentDebits {
     }
 }
 
+<<<<<<< HEAD
 #[derive(Default, Debug)]
 pub struct ExecuteTimings {
     pub check_us: u64,
@@ -221,6 +233,8 @@ impl ExecuteTimings {
     }
 }
 
+=======
+>>>>>>> 7d32909e1 (move `ExecuteTimings` from `runtime::bank` to `program_runtime::timings`)
 type BankStatusCache = StatusCache<Result<()>>;
 #[frozen_abi(digest = "5Br3PNyyX1L7XoS4jYLt5JTeMXowLSsu7v9LhokC8vnq")]
 pub type BankSlotDelta = SlotDelta<Result<()>>;
