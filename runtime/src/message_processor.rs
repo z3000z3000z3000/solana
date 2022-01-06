@@ -36,7 +36,11 @@ use {
         },
         pubkey::Pubkey,
         rent::Rent,
+<<<<<<< HEAD
         system_program,
+=======
+        saturating_add_assign,
+>>>>>>> 72fc6096a (Use saturating_add_assign macro)
         sysvar::instructions,
         transaction::TransactionError,
     },
@@ -1472,7 +1476,10 @@ impl MessageProcessor {
                 result.is_err(),
             );
             timings.details.accumulate(&invoke_context.timings);
-            timings.execute_accessories.process_instructions_us += time.as_us();
+            saturating_add_assign!(
+                timings.execute_accessories.process_instructions_us,
+                time.as_us()
+            );
             result
                 .map_err(|err| TransactionError::InstructionError(instruction_index as u8, err))?;
 >>>>>>> b25e4a200 (Add execute metrics)

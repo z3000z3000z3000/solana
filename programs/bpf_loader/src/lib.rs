@@ -49,6 +49,7 @@ use {
         program_utils::limited_deserialize,
         pubkey::Pubkey,
         rent::Rent,
+        saturating_add_assign,
         system_instruction::{self, MAX_PERMITTED_DATA_LENGTH},
     },
     std::{cell::RefCell, fmt::Debug, pin::Pin, rc::Rc, sync::Arc},
@@ -293,7 +294,10 @@ fn process_instruction_common(
             }
         };
         get_or_create_executor_time.stop();
-        invoke_context.timings.get_or_create_executor_us += get_or_create_executor_time.as_us();
+        saturating_add_assign!(
+            invoke_context.timings.get_or_create_executor_us,
+            get_or_create_executor_time.as_us()
+        );
 
         executor.execute(
             loader_id,
