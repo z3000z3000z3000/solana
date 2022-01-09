@@ -79,6 +79,28 @@ fn map_ebpf_error(invoke_context: &dyn InvokeContext, e: EbpfError<BpfError>) ->
     InstructionError::InvalidAccountData
 }
 
+mod executor_metrics {
+    #[derive(Debug, Default)]
+    pub struct CreateMetrics {
+        pub program_id: String,
+        pub load_elf_us: u64,
+        pub verify_code_us: u64,
+        pub jit_compile_us: u64,
+    }
+
+    impl CreateMetrics {
+        pub fn submit_datapoint(&self) {
+            datapoint_trace!(
+                "create_executor_trace",
+                ("program_id", self.program_id, String),
+                ("load_elf_us", self.load_elf_us, i64),
+                ("verify_code_us", self.verify_code_us, i64),
+                ("jit_compile_us", self.jit_compile_us, i64),
+            );
+        }
+    }
+}
+
 pub fn create_executor(
     program_account_index: usize,
     program_data_offset: usize,
@@ -106,16 +128,18 @@ pub fn create_executor(
         reject_all_writable_sections: invoke_context.is_feature_active(&reject_all_elf_rw::id()),
         ..Config::default()
     };
-    let program_id;
-    let load_elf_us: u64;
-    let verify_elf_us: u64;
-    let mut jit_compile_us = 0u64;
+    let mut create_executor_metrics = executor_metrics::CreateMetrics::default();
     let mut executable = {
         let keyed_accounts = invoke_context.get_keyed_accounts()?;
+<<<<<<< HEAD
         let program = keyed_account_at_index(keyed_accounts, program_account_index)?;
         program_id = *program.unsigned_key();
         let account = program.try_account_ref()?;
         let data = &account.data()[program_data_offset..];
+=======
+        let programdata = keyed_account_at_index(keyed_accounts, programdata_account_index)?;
+        create_executor_metrics.program_id = programdata.unsigned_key().to_string();
+>>>>>>> 428575f9a (wrap create executor timings datapoint in a module)
         let mut load_elf_time = Measure::start("load_elf_time");
         let executable = Executable::<BpfError, ThisInstructionMeter>::from_elf(
             data,
@@ -124,7 +148,15 @@ pub fn create_executor(
             syscall_registry,
         );
         load_elf_time.stop();
+<<<<<<< HEAD
         load_elf_us = load_elf_time.as_us();
+=======
+        create_executor_metrics.load_elf_us = load_elf_time.as_us();
+        invoke_context.timings.create_executor_load_elf_us = invoke_context
+            .timings
+            .create_executor_load_elf_us
+            .saturating_add(create_executor_metrics.load_elf_us);
+>>>>>>> 428575f9a (wrap create executor timings datapoint in a module)
         executable
     }
     .map_err(|e| map_ebpf_error(invoke_context, e))?;
@@ -133,25 +165,35 @@ pub fn create_executor(
     verifier::check(text_bytes, &config)
         .map_err(|e| map_ebpf_error(invoke_context, EbpfError::UserError(e.into())))?;
     verify_code_time.stop();
+<<<<<<< HEAD
     verify_elf_us = verify_code_time.as_us();
+=======
+    create_executor_metrics.verify_code_us = verify_code_time.as_us();
+    invoke_context.timings.create_executor_verify_code_us = invoke_context
+        .timings
+        .create_executor_verify_code_us
+        .saturating_add(create_executor_metrics.verify_code_us);
+>>>>>>> 428575f9a (wrap create executor timings datapoint in a module)
     if use_jit {
         let mut jit_compile_time = Measure::start("jit_compile_time");
         let jit_compile_result =
             Executable::<BpfError, ThisInstructionMeter>::jit_compile(&mut executable);
         jit_compile_time.stop();
+<<<<<<< HEAD
         jit_compile_us = jit_compile_time.as_us();
+=======
+        create_executor_metrics.jit_compile_us = jit_compile_time.as_us();
+        invoke_context.timings.create_executor_jit_compile_us = invoke_context
+            .timings
+            .create_executor_jit_compile_us
+            .saturating_add(create_executor_metrics.jit_compile_us);
+>>>>>>> 428575f9a (wrap create executor timings datapoint in a module)
         if let Err(err) = jit_compile_result {
             ic_msg!(invoke_context, "Failed to compile program {:?}", err);
             return Err(InstructionError::ProgramFailedToCompile);
         }
     }
-    datapoint_trace!(
-        "create_executor_trace",
-        ("program_id", program_id.to_string(), String),
-        ("load_elf_us", load_elf_us, i64),
-        ("verify_elf_us", verify_elf_us, i64),
-        ("jit_compile_us", jit_compile_us, i64),
-    );
+    create_executor_metrics.submit_datapoint();
     Ok(Arc::new(BpfExecutor { executable }))
 }
 
