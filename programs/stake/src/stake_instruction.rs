@@ -17,7 +17,7 @@ use {
             program::id,
             state::{Authorized, Lockup},
         },
-        sysvar::{self, clock::Clock, rent::Rent, stake_history::StakeHistory},
+        sysvar::{clock::Clock, rent::Rent, stake_history::StakeHistory},
     },
 };
 
@@ -204,11 +204,11 @@ pub fn process_instruction(
                 .feature_set
                 .is_active(&feature_set::stake_program_v4::id())
             {
-                Some(invoke_context.get_sysvar::<Clock>(&sysvar::clock::id())?)
+                Some(invoke_context.get_sysvar_cache().get_clock()?)
             } else {
                 None
             };
-            me.set_lockup(&lockup, &signers, clock.as_ref())
+            me.set_lockup(&lockup, &signers, clock.as_deref())
         }
         StakeInstruction::InitializeChecked => {
             if invoke_context
@@ -326,8 +326,8 @@ pub fn process_instruction(
                     epoch: lockup_checked.epoch,
                     custodian,
                 };
-                let clock = Some(invoke_context.get_sysvar::<Clock>(&sysvar::clock::id())?);
-                me.set_lockup(&lockup, &signers, clock.as_ref())
+                let clock = Some(invoke_context.get_sysvar_cache().get_clock()?);
+                me.set_lockup(&lockup, &signers, clock.as_deref())
             } else {
                 Err(InstructionError::InvalidInstructionData)
             }
@@ -354,7 +354,11 @@ mod tests {
                 instruction::{self, LockupArgs},
                 state::{Authorized, Lockup, StakeAuthorize},
             },
+<<<<<<< HEAD
             sysvar::{stake_history::StakeHistory, Sysvar},
+=======
+            sysvar::{self, stake_history::StakeHistory},
+>>>>>>> 2370e6143 (Perf: Store deserialized sysvars in the sysvars cache (#22455))
         },
         std::{cell::RefCell, rc::Rc, str::FromStr},
     };
@@ -424,6 +428,7 @@ mod tests {
             .zip(accounts)
             .map(|(meta, account)| (meta.is_signer, meta.is_writable, meta.pubkey, account))
             .collect();
+<<<<<<< HEAD
         let mut preparation = prepare_mock_invoke_context(&[], &instruction.data, &keyed_accounts);
         let processor_account = AccountSharedData::new_ref(0, 0, &solana_sdk::native_loader::id());
         let program_indices = vec![preparation.accounts.len()];
@@ -440,6 +445,20 @@ mod tests {
             &preparation.account_indices,
         )?;
         super::process_instruction(1, &instruction.data, &mut invoke_context)
+=======
+        let mut sysvar_cache = SysvarCache::default();
+        sysvar_cache.set_clock(Clock::default());
+        mock_process_instruction_with_sysvars(
+            &id(),
+            Vec::new(),
+            &instruction.data,
+            transaction_accounts,
+            instruction.accounts.clone(),
+            expected_result,
+            &sysvar_cache,
+            super::process_instruction,
+        )
+>>>>>>> 2370e6143 (Perf: Store deserialized sysvars in the sysvars cache (#22455))
     }
 
     #[test]
@@ -1065,6 +1084,7 @@ mod tests {
         );
         let custodian_account = create_default_account();
 
+<<<<<<< HEAD
         let keyed_accounts = [
             (false, false, stake_address, stake_account),
             (true, false, withdrawer, withdrawer_account),
@@ -1089,6 +1109,36 @@ mod tests {
             .unwrap();
         assert_eq!(
             super::process_instruction(1, &instruction.data, &mut invoke_context),
+=======
+        let mut sysvar_cache = SysvarCache::default();
+        sysvar_cache.set_clock(Clock::default());
+        mock_process_instruction_with_sysvars(
+            &id(),
+            Vec::new(),
+            &instruction.data,
+            vec![
+                (stake_address, stake_account),
+                (withdrawer, withdrawer_account),
+                (custodian, custodian_account),
+            ],
+            vec![
+                AccountMeta {
+                    pubkey: stake_address,
+                    is_signer: false,
+                    is_writable: false,
+                },
+                AccountMeta {
+                    pubkey: withdrawer,
+                    is_signer: true,
+                    is_writable: false,
+                },
+                AccountMeta {
+                    pubkey: custodian,
+                    is_signer: true,
+                    is_writable: false,
+                },
+            ],
+>>>>>>> 2370e6143 (Perf: Store deserialized sysvars in the sysvars cache (#22455))
             Ok(()),
         );
     }

@@ -1440,7 +1440,7 @@ impl Bank {
         bank.update_rent();
         bank.update_epoch_schedule();
         bank.update_recent_blockhashes();
-        bank.fill_sysvar_cache();
+        bank.fill_missing_sysvar_cache_entries();
         bank
     }
 
@@ -1627,7 +1627,7 @@ impl Bank {
         new.update_stake_history(Some(parent_epoch));
         new.update_clock(Some(parent_epoch));
         new.update_fees();
-        new.fill_sysvar_cache();
+        new.fill_missing_sysvar_cache_entries();
 
         time.stop();
 
@@ -1698,7 +1698,7 @@ impl Bank {
                 new.inherit_specially_retained_account_fields(account),
             )
         });
-
+        new.fill_missing_sysvar_cache_entries();
         new.freeze();
         new
     }
@@ -1955,6 +1955,7 @@ impl Bank {
         }
 
         self.store_account_and_update_capitalization(pubkey, &new_account);
+<<<<<<< HEAD
 
         // Update the entry in the cache
         let mut sysvar_cache = self.sysvar_cache.write().unwrap();
@@ -1963,6 +1964,8 @@ impl Bank {
         } else {
             sysvar_cache.push((*pubkey, new_account.data().to_vec()));
         }
+=======
+>>>>>>> 2370e6143 (Perf: Store deserialized sysvars in the sysvars cache (#22455))
     }
 
     fn inherit_specially_retained_account_fields(
@@ -2082,6 +2085,10 @@ impl Bank {
                 self.inherit_specially_retained_account_fields(account),
             )
         });
+        // Simply force fill sysvar cache rather than checking which sysvar was
+        // actually updated since tests don't need to be optimized for performance.
+        self.reset_sysvar_cache();
+        self.fill_missing_sysvar_cache_entries();
     }
 
     fn update_slot_history(&self) {
@@ -3682,9 +3689,13 @@ impl Bank {
             return Err(TransactionError::UnsupportedVersion);
         }
 
-        let slot_hashes: SlotHashes = self
-            .get_cached_sysvar(&sysvar::slot_hashes::id())
-            .ok_or(TransactionError::AccountNotFound)?;
+        let slot_hashes = self
+            .sysvar_cache
+            .read()
+            .unwrap()
+            .get_slot_hashes()
+            .map_err(|_| TransactionError::AccountNotFound)?;
+
         Ok(address_table_lookups
             .iter()
             .map(|address_table_lookup| {
